@@ -1,0 +1,4 @@
+# .env — update these values
+FLASK_ENV=production
+SECRET_KEY=local-dev-secret-key-change-in-prod
+LOG_DIR=/tmp/py-app/logs
