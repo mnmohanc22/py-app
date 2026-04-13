@@ -13,11 +13,15 @@ start() {
         exit 1
     fi
 
+    # Ensure PID and log directories exist
+    mkdir -p "$(dirname "$PID_FILE")"
+    mkdir -p "$(dirname "$LOG")"
+
     echo "Starting Gunicorn..."
     cd "$APP_DIR"
     source "$APP_DIR/venv/bin/activate"
 
-    nohup "$VENV" "$APP" --config "$CONF" \
+    nohup "$VENV" "$APP" --config "$CONF" --pid "$PID_FILE" \
         > "$LOG" 2>&1 &
 
     sleep 2
