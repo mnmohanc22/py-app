@@ -29,3 +29,80 @@ sudo alternatives --config python3
 
 # Verify
 python3 --version
+======
+
+cd /opt/myapp
+source venv/bin/activate
+
+# Basic start
+gunicorn "wsgi:application" --config gunicorn.conf.py
+
+# Start in background (detached)
+gunicorn "wsgi:application" --config gunicorn.conf.py --daemon
+
+# Start in background with nohup (survives terminal close)
+nohup gunicorn "wsgi:application" --config gunicorn.conf.py \
+    > /var/log/myapp/gunicorn-startup.log 2>&1 &
+
+# Confirm it started
+ps aux | grep gunicorn
+
+# Option 1 — from pidfile (if gunicorn.conf.py has pidfile set)
+cat /var/run/myapp/gunicorn.pid
+
+# Option 2 — from ps
+ps aux | grep gunicorn
+
+# Option 3 — from pgrep
+pgrep -f gunicorn
+
+# Option 4 — check port
+ss -tlnp | grep 8000
+lsof -i :8000
+
+# Graceful stop — finishes in-flight requests then exits
+kill -TERM $(cat /var/run/myapp/gunicorn.pid)
+
+# Or using pgrep (if no pidfile)
+kill -TERM $(pgrep -f "gunicorn")
+
+# Force kill — immediate, drops all requests
+kill -9 $(cat /var/run/myapp/gunicorn.pid)
+
+# Kill all gunicorn processes at once
+pkill -f gunicorn
+
+# Force kill all
+pkill -9 -f gunicorn
+
+
+# USR1 — reopen log files (for log rotation)
+kill -USR1 $(cat /var/run/myapp/gunicorn.pid)
+
+# HUP — reload workers gracefully (restart workers one by one)
+kill -HUP $(cat /var/run/myapp/gunicorn.pid)
+
+
+# Make it executable
+chmod +x /opt/myapp/gunicorn.sh
+
+# Use it
+./gunicorn.sh start
+./gunicorn.sh stop
+./gunicorn.sh restart
+./gunicorn.sh reload
+./gunicorn.sh status
+
+
+# Start
+nohup gunicorn "wsgi:application" --config gunicorn.conf.py &
+
+# Stop gracefully
+kill -TERM $(cat /var/run/myapp/gunicorn.pid)
+
+# Restart
+kill -TERM $(cat /var/run/myapp/gunicorn.pid) && sleep 2 \
+    && nohup gunicorn "wsgi:application" --config gunicorn.conf.py &
+
+# Status
+ps aux | grep gunicorn
