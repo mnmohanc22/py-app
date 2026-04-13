@@ -12,3 +12,9 @@ source venv/bin/activate
 # Confirm you're inside venv
 which python
 # → /opt/myapp/venv/bin/python
+
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Verify key packages installed
+pip show flask gunicorn python-dotenv flask-sqlalchemy
