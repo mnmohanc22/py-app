@@ -17,4 +17,15 @@ pip install --upgrade pip
 pip install -r requirements.txt
 
 # Verify key packages installed
-pip show flask gunicorn python-dotenv flask-sqlalchemy
+pip show flask gunicorn python-dotenv flask-sqlalchemy'
+
+
+# Register both versions
+sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6  1
+sudo alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 2
+
+# Interactively choose default
+sudo alternatives --config python3
+
+# Verify
+python3 --version
