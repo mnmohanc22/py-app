@@ -1,0 +1,14 @@
+cd /opt/myapp
+source venv/bin/activate
+
+gunicorn "wsgi:application" --config gunicorn.conf.py
+
+# Create venv
+python3 -m venv venv
+
+# Activate it
+source venv/bin/activate
+
+# Confirm you're inside venv
+which python
+# → /opt/myapp/venv/bin/python
