@@ -377,53 +377,9 @@ ldconfig -p | grep -i "libclntsh\|libocci\|libociicus" \
 echo ""
 
 # ════════════════════════════════════════════════════════════════
-# STEP 12 — Create tnsnames.ora
+# STEP 12 — Set environment variables
 # ════════════════════════════════════════════════════════════════
-section "STEP 12: Create TNS configuration"
-
-TNSNAMES="$TNS_ADMIN/tnsnames.ora"
-SQLNET="$TNS_ADMIN/sqlnet.ora"
-
-if [ ! -f "$TNSNAMES" ]; then
-    cat > "$TNSNAMES" << 'EOF'
-# Oracle TNS Names Configuration
-# Oracle Instant Client 21.12 Basic Lite
-#
-# Add database connections below:
-#
-# MYDB =
-#   (DESCRIPTION =
-#     (ADDRESS = (PROTOCOL = TCP)(HOST = dbhost.company.com)(PORT = 1521))
-#     (CONNECT_DATA =
-#       (SERVER = DEDICATED)
-#       (SERVICE_NAME = myservice)
-#     )
-#   )
-EOF
-    chown "$INSTALL_USER":"$INSTALL_GROUP" "$TNSNAMES"
-    chmod 640 "$TNSNAMES"
-    success "Created: $TNSNAMES"
-else
-    success "Exists: $TNSNAMES"
-fi
-
-if [ ! -f "$SQLNET" ]; then
-    cat > "$SQLNET" << EOF
-# Oracle SQLNet Configuration
-NAMES.DIRECTORY_PATH = (TNSNAMES, EZCONNECT)
-TCP.CONNECT_TIMEOUT  = 10
-EOF
-    chown "$INSTALL_USER":"$INSTALL_GROUP" "$SQLNET"
-    chmod 640 "$SQLNET"
-    success "Created: $SQLNET"
-else
-    success "Exists: $SQLNET"
-fi
-
-# ════════════════════════════════════════════════════════════════
-# STEP 13 — Set environment variables
-# ════════════════════════════════════════════════════════════════
-section "STEP 13: Set environment variables"
+section "STEP 12: Set environment variables"
 
 ENV_PROFILE="/etc/profile.d/oracle-instantclient.sh"
 
@@ -454,9 +410,9 @@ printf "  %-25s = %s\n" "NLS_LANG"        "AMERICAN_AMERICA.AL32UTF8"
 echo ""
 
 # ════════════════════════════════════════════════════════════════
-# STEP 14 — Verify installation
+# STEP 13 — Verify installation
 # ════════════════════════════════════════════════════════════════
-section "STEP 14: Verify installation"
+section "STEP 13: Verify installation"
 
 echo ""
 echo "  Key files in $ORACLE_HOME:"
