@@ -1,0 +1,49 @@
+# /etc/systemd/system/myapp.service
+[Unit]
+Description=MyApp Flask/Gunicorn
+After=network.target postgresql.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+User=wlsapps
+Group=wlsapps
+WorkingDirectory=/opt/myapp
+
+# systemd calls shell script for lifecycle
+ExecStart=/opt/scripts/app1.sh start
+ExecStop=/opt/scripts/app1.sh stop
+ExecReload=/opt/scripts/app1.sh reload
+
+# CRITICAL — systemd reads PID from this file
+# Must match pidfile= in gunicorn.conf.py
+# Must match PID_FILE in app1.sh
+PIDFile=/opt/pids/app1.pid
+
+# Type=forking — systemd waits for PID file to appear
+# Script starts gunicorn in background (direct mode)
+# systemd knows app is ready when PID file exists
+Type=forking
+
+RuntimeDirectory=myapp
+RuntimeDirectoryMode=0755
+LogsDirectory=myapp
+LogsDirectoryMode=0755
+
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+# Restart on crash — not on clean systemctl stop
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/logs/app1 /opt/pids /opt/myapp /opt/envs
+
+[Install]
+WantedBy=multi-user.target

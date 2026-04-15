@@ -1,0 +1,23 @@
+[Unit]
+Description=Gunicorn instance to serve myapp
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/myapp
+
+# Use startup script instead of calling gunicorn directly
+ExecStart=/opt/myapp/scripts/gunicorn.sh start
+ExecStop=/opt/myapp/scripts/gunicorn.sh stop
+ExecReload=/opt/myapp/scripts/gunicorn.sh reload
+
+Type=forking
+PIDFile=/var/run/myapp/gunicorn.pid
+RuntimeDirectory=myapp
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

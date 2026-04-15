@@ -7,6 +7,8 @@ CONF="$APP_DIR/gunicorn.conf.py"
 PID_FILE="/var/run/myapp/gunicorn.pid"
 LOG="/var/log/myapp/gunicorn-startup.log"
 
+
+
 start() {
     if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE") 2>/dev/null; then
         echo "Gunicorn already running — PID: $(cat $PID_FILE)"
@@ -19,6 +21,20 @@ start() {
 
     echo "Starting Gunicorn..."
     cd "$APP_DIR"
+
+        ##create venv if not exists
+    if [ ! -f "$APP_DIR/venv/bin/activate" ]; then
+        echo "Creating venv..."
+        python3 -m venv "$APP_DIR/venv"
+        "$APP_DIR/venv/bin/pip" install --upgrade pip setuptools wheel -q
+        "$APP_DIR/venv/bin/pip" install -r "$APP_DIR/requirements.txt" -q
+        echo "venv created and dependencies installed"
+    else
+        echo "venv already exists"
+    fi  
+
+
+
     source "$APP_DIR/venv/bin/activate"
 
     nohup "$VENV" "$APP" --config "$CONF" --pid "$PID_FILE" \

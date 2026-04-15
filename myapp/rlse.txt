@@ -1,0 +1,67 @@
+/opt/
+├── myapp-releases/             # all deployed versions live here
+│   ├── v1.0.0/                 # older version (kept for rollback)
+│   ├── v1.0.1/                 # previous version
+│   └── v1.1.0/                 # current version
+│
+├── myapp -> myapp-releases/v1.1.0   # symlink points to current
+│
+├── venvs/
+│   └── app1/
+├── envs/
+│   └── app1.env
+└── scripts/
+    └── app1.sh
+
+Developer
+    │
+    git tag -a v1.1.0 -m "Release"
+    git push origin v1.1.0
+    │
+    ▼
+CI/CD triggers
+    │
+    ansible-playbook deploy.yml -e git_version=v1.1.0
+    │
+    ▼
+Ansible on server
+    │
+    ├── clone v1.1.0 → /opt/myapp-releases/v1.1.0
+    ├── pip install  → /opt/venvs/app1  (unchanged if no new deps)
+    ├── ln -sfn v1.1.0 → /opt/myapp    (symlink switches)
+    ├── app1.sh stop
+    ├── app1.sh start
+    └── health check passes ✓
+    │
+    ▼
+/opt/myapp-releases/
+    ├── v1.0.0/    ← available for rollback
+    ├── v1.0.1/    ← available for rollback
+    └── v1.1.0/    ← current (symlinked)    
+
+
+
+---
+
+myapp (source repo)              myapp-ops (ops repo)
+    │                                  │
+    git tag v1.1.0                     ops team updates scripts
+    │                                  │
+    ▼                                  ▼
+Ansible Master
+    /opt/ansible-workspace/
+        ├── myapp/      ← git checkout v1.1.0
+        └── myapp-ops/  ← git pull main
+
+            │                    │
+            ▼                    ▼
+        deploy.yml           sync-ops.yml
+            │                    │
+            └──────┬─────────────┘
+                   ▼
+            Remote Servers
+                /opt/myapp-releases/v1.1.0  ← source code
+                /opt/scripts/app1.sh         ← from ops repo
+                /opt/configs/gunicorn/       ← from ops repo
+                /opt/envs/app1.env           ← rendered from vault
+                /etc/systemd/system/         ← from ops repo

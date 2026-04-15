@@ -1,0 +1,41 @@
+# /etc/systemd/system/myapp.service
+[Unit]
+Description=MyApp Flask/Gunicorn
+After=network.target postgresql.service
+
+[Service]
+User=wlsapps
+Group=wlsapps
+WorkingDirectory=/opt/myapp             # source code dir
+
+ExecStart=/opt/scripts/app1.sh start
+ExecStop=/opt/scripts/app1.sh stop
+ExecReload=/opt/scripts/app1.sh reload
+
+# PID file — outside source dir
+PIDFile=/var/run/myapp/app1.pid
+
+Type=forking
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStartSec=30
+TimeoutStopSec=30
+Restart=on-failure
+RestartSec=5
+
+# systemd creates these dirs automatically before start
+# RuntimeDirectory → /var/run/myapp
+# LogsDirectory    → /var/log/myapp
+RuntimeDirectory=myapp
+RuntimeDirectoryMode=0755
+LogsDirectory=myapp
+LogsDirectoryMode=0755
+
+# Allow writes to external dirs only
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/log/myapp /var/run/myapp /opt/myapp
+
+[Install]
+WantedBy=multi-user.target

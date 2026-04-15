@@ -1,0 +1,112 @@
+#!/bin/bash
+# /opt/scripts/create_dirs.sh
+# Source this file — do not execute directly
+
+# ── Create single directory ───────────────────────────────────────
+create_dir() {
+    local dir="$1"
+    local owner="${2:-$(whoami)}"
+    local group="${3:-$(whoami)}"
+    local mode="${4:-755}"
+
+    [ -z "$dir" ] && return 0
+
+    if [ -d "$dir" ]; then
+        echo -e "  ${GREEN}✓ exists${NC}   $dir"
+    else
+        mkdir -p "$dir" \
+            && echo -e "  ${BLUE}+ created${NC}  $dir" \
+            || { echo -e "  ${RED}✗ failed${NC}   $dir"; return 1; }
+    fi
+
+    if [ "$(id -u)" = "0" ]; then
+        chown "$owner":"$group" "$dir"
+        chmod "$mode" "$dir"
+        echo -e "             owner=$owner:$group mode=$mode"
+    fi
+}
+
+# ── Create full project structure under PROJECT_ROOT ─────────────
+create_project_dirs() {
+    local app_user="${APP_USER:-$(whoami)}"
+    local app_group="${APP_GROUP:-$(whoami)}"
+
+    echo ""
+    echo "┌──────────────────────────────────────────────────────────┐"
+    echo "│         Creating Project Directory Structure             │"
+    echo "├──────────────────────────────────────────────────────────┤"
+
+    # ── 1. Project root ───────────────────────────────────────────
+    echo "│"
+    echo "│ [1] PROJECT ROOT"
+    create_dir "$PROJECT_ROOT"       "$app_user" "$app_group" "755"
+
+    # ── 2. App source ─────────────────────────────────────────────
+    echo "│"
+    echo "│ [2] APP SOURCE  ($PROJECT_ROOT/$APP_RELATIVE)"
+    create_dir "$APP_DIR"            "$app_user" "$app_group" "755"
+
+    # ── 3. Releases ───────────────────────────────────────────────
+    echo "│"
+    echo "│ [3] RELEASES    ($PROJECT_ROOT/$RELEASES_RELATIVE)"
+    create_dir "$RELEASES_DIR"       "$app_user" "$app_group" "755"
+
+    # ── 4. Configs ────────────────────────────────────────────────
+    echo "│"
+    echo "│ [4] CONFIGS     ($PROJECT_ROOT/$CONFIGS_RELATIVE)"
+    create_dir "$CONFIGS_DIR"        "$app_user" "$app_group" "755"
+    create_dir "$GUNICORN_CONF_DIR"  "$app_user" "$app_group" "755"
+
+    # ── 5. Logs ───────────────────────────────────────────────────
+    echo "│"
+    echo "│ [5] LOGS        ($PROJECT_ROOT/$LOGS_RELATIVE)"
+    create_dir "$LOG_DIR"            "$app_user" "$app_group" "755"
+
+    # ── 6. Run / PID ──────────────────────────────────────────────
+    echo "│"
+    echo "│ [6] RUN         ($PROJECT_ROOT/$RUN_RELATIVE)"
+    create_dir "$RUN_DIR"            "$app_user" "$app_group" "755"
+
+    # ── 7. Venv — under project root ──────────────────────────────
+    echo "│"
+    echo "│ [7] VENV        ($PROJECT_ROOT/$VENV_RELATIVE)"
+    create_dir "$VENV_DIR"           "$app_user" "$app_group" "755"
+
+    # ── 8. Envs — only dir outside project root ───────────────────
+    echo "│"
+    echo "│ [8] ENVS        ($ENVS_DIR)  ← outside project root"
+    create_dir "$ENVS_DIR"           "$app_user" "$app_group" "750"
+
+    echo "│"
+    echo "└──────────────────────────────────────────────────────────┘"
+    echo ""
+}
+
+# ── Print tree status ─────────────────────────────────────────────
+print_dir_tree() {
+
+    chk() {
+        if [ -d "$1" ]; then
+            echo -e "${GREEN}✓${NC}"
+        else
+            echo -e "${RED}✗ missing${NC}"
+        fi
+    }
+
+    echo ""
+    echo "  Project Directory Tree"
+    echo "  ────────────────────────────────────────────────────────"
+    echo -e "  $PROJECT_ROOT/  $(chk $PROJECT_ROOT)"
+    echo -e "  │"
+    echo -e "  ├── app/          $(chk $APP_DIR)       → $APP_DIR"
+    echo -e "  ├── releases/     $(chk $RELEASES_DIR)  → $RELEASES_DIR"
+    echo -e "  ├── configs/      $(chk $CONFIGS_DIR)   → $CONFIGS_DIR"
+    echo -e "  │   └── gunicorn/ $(chk $GUNICORN_CONF_DIR)"
+    echo -e "  ├── logs/         $(chk $LOG_DIR)       → $LOG_DIR"
+    echo -e "  ├── run/          $(chk $RUN_DIR)       → $RUN_DIR"
+    echo -e "  └── venv/         $(chk $VENV_DIR)      → $VENV_DIR"
+    echo -e ""
+    echo -e "  Outside project root:"
+    echo -e "  └── envs/         $(chk $ENVS_DIR)      → $ENVS_DIR"
+    echo ""
+}

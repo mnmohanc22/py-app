@@ -1,0 +1,53 @@
+# Standard
+/opt/scripts/bootstrap.sh
+
+# Custom vars file
+/opt/scripts/bootstrap.sh --vars /opt/scripts/bootstrap.vars
+
+# Force recreate venv
+/opt/scripts/bootstrap.sh --force
+
+
+/opt/scripts/
+    ├── bootstrap.vars    ← all relative to PROJECT_ROOT
+    ├── bootstrap.sh      ← resolves + creates all dirs
+    ├── read_env.sh       ← safe .env loader
+    └── create_dirs.sh    ← create_project_dirs() + print_dir_tree()
+
+
+[bootstrap] Step 4: Resolving all paths from PROJECT_ROOT=/opt/myapp-project
+
+  ┌──────────────────────────────────────────────────────────┐
+  │           Resolved Paths (all under PROJECT_ROOT)        │
+  ├─────────────────────────────┬────────────────────────────┤
+  │  PROJECT_ROOT               │ /opt/myapp-project
+  ├─────────────────────────────┼────────────────────────────┤
+  │  APP_DIR                    │ /opt/myapp-project/app
+  │  RELEASES_DIR               │ /opt/myapp-project/releases
+  │  CONFIGS_DIR                │ /opt/myapp-project/configs
+  │  GUNICORN_CONF_DIR          │ /opt/myapp-project/configs/gunicorn
+  │  LOG_DIR                    │ /opt/myapp-project/logs
+  │  RUN_DIR                    │ /opt/myapp-project/run
+  │  VENV_DIR                   │ /opt/myapp-project/venv
+  │  PID_FILE                   │ /opt/myapp-project/run/myapp.pid
+  ├─────────────────────────────┼────────────────────────────┤
+  │  Outside project root       │                            │
+  ├─────────────────────────────┼────────────────────────────┤
+  │  ENVS_DIR                   │ /opt/envs
+  │  ENV_FILE                   │ /opt/envs/myapp.env
+  └─────────────────────────────┴────────────────────────────┘
+
+  Project Directory Tree
+  ────────────────────────────────────────────────────────
+  /opt/myapp-project/  ✓
+  │
+  ├── app/          ✓  → /opt/myapp-project/app
+  ├── releases/     ✓  → /opt/myapp-project/releases
+  ├── configs/      ✓  → /opt/myapp-project/configs
+  │   └── gunicorn/ ✓
+  ├── logs/         ✓  → /opt/myapp-project/logs
+  ├── run/          ✓  → /opt/myapp-project/run
+  └── venv/         ✓  → /opt/myapp-project/venv
+
+  Outside project root:
+  └── envs/         ✓  → /opt/envs    
