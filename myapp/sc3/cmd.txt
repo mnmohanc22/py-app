@@ -28,7 +28,7 @@ Gunicorn running
     logs → /opt/myapp-project/logs/gunicorn-access.log
            /opt/myapp-project/logs/gunicorn-error.log
 
-           
+
 
 # Start
 sudo systemctl start myapp
@@ -86,3 +86,35 @@ sudo -u wlsapps /opt/scripts/app1.sh status
 # Verify PID file location
 ls -la /opt/myapp-project/run/
 # → myapp.pid
+
+===
+
+# Place ZIP first
+mkdir -p /tmp/oracle_zips
+# copy instantclient-basiclite-linux.x64-21.12.0.0.0dbru.zip here
+
+# Run
+sudo /opt/scripts/install_oracle_basiclite.sh \
+    --zip-dir /tmp/oracle_zips
+
+# Custom owner (wlsapps)
+sudo /opt/scripts/install_oracle_basiclite.sh \
+    --zip-dir /tmp/oracle_zips \
+    --user wlsapps \
+    --group wlsapps
+
+    # Reload env
+source /etc/profile.d/oracle-instantclient.sh
+
+# Check libs
+ldconfig -p | grep libclntsh
+
+# Check dir
+ls -lh /opt/oracle/instantclient_21_12/
+
+# Test Python
+python3 -c "
+import oracledb
+oracledb.init_oracle_client(lib_dir='/opt/oracle/instantclient_21_12')
+print('Oracle client OK')
+"
