@@ -67,3 +67,18 @@
 /opt/scripts/create_venv.sh \
     --vars /opt/scripts/bootstrap.vars \
     --force
+
+# Start
+/opt/scripts/app1.sh start
+
+# Stop
+/opt/scripts/app1.sh stop
+
+# Restart
+/opt/scripts/app1.sh restart
+
+# Reload logs — zero downtime
+/opt/scripts/app1.sh reload
+
+# Status
+/opt/scripts/app1.sh status    
