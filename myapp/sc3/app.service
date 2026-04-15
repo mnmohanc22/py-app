@@ -1,0 +1,63 @@
+# /etc/systemd/system/myapp.service
+
+[Unit]
+Description=MyApp Flask/Gunicorn
+After=network.target network-online.target postgresql.service
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+
+# ── Identity ──────────────────────────────────────────────────────
+User=wlsapps
+Group=wlsapps
+
+# ── Working directory ─────────────────────────────────────────────
+# app1.sh uses SCRIPTS_BASE=$(dirname $0) to find bootstrap.vars
+# WorkingDirectory does not affect this
+WorkingDirectory=/opt/scripts
+
+# ── SCRIPTS_DIR only — app1.sh resolves everything else ───────────
+# app1.sh reads bootstrap.vars from SCRIPTS_BASE=$(dirname $0)
+# No other Environment= needed — bootstrap.vars has everything
+Environment="SCRIPTS_DIR=/opt/scripts"
+
+# ── Exec — app1.sh is the single entry point ──────────────────────
+# app1.sh:
+#   1. loads /opt/scripts/bootstrap.vars
+#   2. sources /opt/envs/myapp.env
+#   3. exports all vars to os.environ
+#   4. exec gunicorn (systemd tracks this PID)
+ExecStart=/opt/scripts/app1.sh start
+ExecStop=/opt/scripts/app1.sh stop
+ExecReload=/opt/scripts/app1.sh reload
+
+# ── PID file — must match bootstrap.vars ──────────────────────────
+# PROJECT_ROOT/RUN_RELATIVE/APP_NAME.pid
+# = /opt/myapp-project/run/myapp.pid
+PIDFile=/opt/myapp-project/run/myapp.pid
+
+# Type=forking — app1.sh starts gunicorn in background then exits
+# systemd waits for PIDFile to appear
+Type=forking
+
+# ── Stop behavior ─────────────────────────────────────────────────
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+TimeoutStartSec=60
+
+# ── Restart policy ────────────────────────────────────────────────
+Restart=on-failure
+RestartSec=5
+
+# ── Security ──────────────────────────────────────────────────────
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/myapp-project /opt/envs /opt/scripts
+
+[Install]
+WantedBy=multi-user.target

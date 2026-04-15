@@ -1,0 +1,88 @@
+
+
+myapp.service
+    │
+    │  Environment="PROJECT_ROOT=/opt/myapp-project"
+    │  Environment="LOGS_RELATIVE=logs"
+    │  Environment="RUN_RELATIVE=run"
+    │  ...
+    │
+    ▼
+ExecStart=/opt/scripts/app1.sh start
+    │
+    │  load_bootstrap_vars()   ← reads bootstrap.vars
+    │  load_env_file()         ← sources .env
+    │  export_project_vars()   ← exports all to os.environ
+    │
+    ▼
+exec gunicorn --config gunicorn.conf.py
+    │
+    │  PROJECT_ROOT  → resolves APP_DIR, LOG_DIR, RUN_DIR
+    │  LOGS_RELATIVE → LOG_DIR = PROJECT_ROOT/logs
+    │  RUN_RELATIVE  → RUN_DIR = PROJECT_ROOT/run
+    │  APP_NAME      → pidfile = RUN_DIR/myapp.pid
+    │
+    ▼
+Gunicorn running
+    PID  → /opt/myapp-project/run/myapp.pid
+    logs → /opt/myapp-project/logs/gunicorn-access.log
+           /opt/myapp-project/logs/gunicorn-error.log
+
+           
+
+# Start
+sudo systemctl start myapp
+
+# Stop — graceful SIGTERM
+sudo systemctl stop myapp
+
+# Restart — full stop + start
+sudo systemctl restart myapp
+
+# Reload — USR1 — reopen logs zero downtime
+sudo systemctl reload myapp
+
+# Status
+sudo systemctl status myapp
+
+# Enable auto-start on boot
+sudo systemctl enable myapp
+
+# Disable auto-start
+sudo systemctl disable myapp
+
+# View logs
+journalctl -u myapp -f
+journalctl -u myapp -n 100
+journalctl -u myapp --since "1 hour ago"
+journalctl -u myapp -p err
+
+# Verify PID matches
+systemctl show myapp --property=MainPID
+cat /opt/myapp-project/run/myapp.pid
+# → both should show same PID
+
+# Verify process owner
+ps aux | grep gunicorn | grep -v grep
+# → wlsapps  12345  gunicorn: master
+
+
+# Check service status
+sudo systemctl status myapp -l
+
+# Check journal for errors
+journalctl -u myapp -n 50 --no-pager
+
+# Check startup log written by app1.sh
+cat /opt/myapp-project/logs/startup.log
+
+# Check gunicorn error log
+cat /opt/myapp-project/logs/gunicorn-error.log
+
+# Test app1.sh directly as wlsapps
+sudo -u wlsapps /opt/scripts/app1.sh start
+sudo -u wlsapps /opt/scripts/app1.sh status
+
+# Verify PID file location
+ls -la /opt/myapp-project/run/
+# → myapp.pid
