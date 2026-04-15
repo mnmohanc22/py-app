@@ -51,3 +51,19 @@
 
   Outside project root:
   └── envs/         ✓  → /opt/envs    
+
+
+
+# Standard — reads bootstrap.vars from same dir
+/opt/scripts/create_venv.sh
+
+# Custom vars file
+/opt/scripts/create_venv.sh --vars /opt/scripts/bootstrap.vars
+
+# Force recreate venv
+/opt/scripts/create_venv.sh --force
+
+# Force with custom vars
+/opt/scripts/create_venv.sh \
+    --vars /opt/scripts/bootstrap.vars \
+    --force
