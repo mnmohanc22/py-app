@@ -1,15 +1,10 @@
 #!/bin/bash
 # /opt/scripts/bootstrap.sh
-# Creates project root structure — all dirs under PROJECT_ROOT
-# venv, configs, logs, run all inside PROJECT_ROOT
-# Only envs dir lives outside
-# Does NOT load .env — app1.sh responsibility
-# Usage: ./bootstrap.sh [--vars /path/to/bootstrap.vars] [--force]
 
 set -euo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────
-BOOTSTRAP_VARS="$(dirname "$0")/bootstrap.vars"
+BOOTSTRAP_VARS=""
 FORCE_RECREATE=false
 
 # ── Parse args ────────────────────────────────────────────────────
@@ -39,38 +34,127 @@ warn()    { echo -e "${YELLOW}[bootstrap] ⚠${NC} $1"; }
 error()   { echo -e "${RED}[bootstrap] ✗${NC} $1"; }
 die()     { error "$1"; exit 1; }
 
-SCRIPTS_BASE="$(dirname "$0")"
+# ════════════════════════════════════════════════════════════════
+# RESOLVE SCRIPTS DIRECTORY — must come before anything else
+# ════════════════════════════════════════════════════════════════
+
+# realpath resolves symlinks — works wherever script is called from
+if command -v realpath &>/dev/null; then
+    SCRIPTS_BASE="$(dirname "$(realpath "$0")")"
+else
+    # Fallback for systems without realpath
+    SCRIPTS_BASE="$(cd "$(dirname "$0")" && pwd)"
+fi
+
+log "Scripts base dir: $SCRIPTS_BASE"
+
+# ── Set default bootstrap.vars if not provided ────────────────────
+if [ -z "$BOOTSTRAP_VARS" ]; then
+    BOOTSTRAP_VARS="$SCRIPTS_BASE/bootstrap.vars"
+fi
+
+log "Bootstrap vars: $BOOTSTRAP_VARS"
 
 # ════════════════════════════════════════════════════════════════
-# STEP 1 — Load helpers
+# STEP 1 — Source read_env.sh and verify load_env function
 # ════════════════════════════════════════════════════════════════
-log "Step 1: Loading helpers"
+log "Step 1: Loading read_env.sh"
 
-[ -f "$SCRIPTS_BASE/read_env.sh" ] \
-    || die "read_env.sh not found: $SCRIPTS_BASE/read_env.sh"
-source "$SCRIPTS_BASE/read_env.sh"
-success "read_env.sh loaded"
+READ_ENV_PATH="$SCRIPTS_BASE/read_env.sh"
 
-[ -f "$SCRIPTS_BASE/create_dirs.sh" ] \
-    || die "create_dirs.sh not found: $SCRIPTS_BASE/create_dirs.sh"
-source "$SCRIPTS_BASE/create_dirs.sh"
-success "create_dirs.sh loaded"
+# Guard: read_env.sh exists
+if [ ! -f "$READ_ENV_PATH" ]; then
+    die "read_env.sh not found: $READ_ENV_PATH
+    Expected at: $SCRIPTS_BASE/read_env.sh
+    Fix: make sure read_env.sh is in the same directory as bootstrap.sh"
+fi
+
+# Guard: read_env.sh readable
+if [ ! -r "$READ_ENV_PATH" ]; then
+    die "read_env.sh not readable: $READ_ENV_PATH
+    Fix: chmod 644 $READ_ENV_PATH"
+fi
+
+# Guard: check for Windows line endings
+if file "$READ_ENV_PATH" | grep -q "CRLF"; then
+    warn "Windows line endings detected in read_env.sh — fixing"
+    sed -i 's/\r//' "$READ_ENV_PATH" \
+        && success "Line endings fixed" \
+        || die "Failed to fix line endings — run: sed -i 's/\r//' $READ_ENV_PATH"
+fi
+
+# Source read_env.sh
+# shellcheck source=/dev/null
+source "$READ_ENV_PATH"
+
+# Guard: verify load_env function is now available
+if ! declare -f load_env > /dev/null 2>&1; then
+    die "load_env function not found after sourcing $READ_ENV_PATH
+    Check read_env.sh contains: load_env() { ... }
+    Debug: grep -n 'load_env' $READ_ENV_PATH"
+fi
+
+success "read_env.sh sourced — load_env is available"
 
 # ════════════════════════════════════════════════════════════════
-# STEP 2 — Load bootstrap.vars
+# STEP 2 — Source create_dirs.sh and verify function
 # ════════════════════════════════════════════════════════════════
-log "Step 2: Loading vars from $BOOTSTRAP_VARS"
+log "Step 2: Loading create_dirs.sh"
 
-[ -f "$BOOTSTRAP_VARS" ] \
-    || die "bootstrap.vars not found: $BOOTSTRAP_VARS"
+CREATE_DIRS_PATH="$SCRIPTS_BASE/create_dirs.sh"
 
+if [ ! -f "$CREATE_DIRS_PATH" ]; then
+    die "create_dirs.sh not found: $CREATE_DIRS_PATH"
+fi
+
+if [ ! -r "$CREATE_DIRS_PATH" ]; then
+    die "create_dirs.sh not readable: $CREATE_DIRS_PATH
+    Fix: chmod 644 $CREATE_DIRS_PATH"
+fi
+
+# Fix CRLF if needed
+if file "$CREATE_DIRS_PATH" | grep -q "CRLF"; then
+    warn "Windows line endings in create_dirs.sh — fixing"
+    sed -i 's/\r//' "$CREATE_DIRS_PATH"
+fi
+
+source "$CREATE_DIRS_PATH"
+
+if ! declare -f create_project_dirs > /dev/null 2>&1; then
+    die "create_project_dirs function not found after sourcing $CREATE_DIRS_PATH"
+fi
+
+success "create_dirs.sh sourced — create_project_dirs is available"
+
+# ════════════════════════════════════════════════════════════════
+# STEP 3 — Load bootstrap.vars
+# ════════════════════════════════════════════════════════════════
+log "Step 3: Loading bootstrap.vars"
+
+if [ ! -f "$BOOTSTRAP_VARS" ]; then
+    die "bootstrap.vars not found: $BOOTSTRAP_VARS
+    Create it at: $SCRIPTS_BASE/bootstrap.vars"
+fi
+
+if [ ! -r "$BOOTSTRAP_VARS" ]; then
+    die "bootstrap.vars not readable: $BOOTSTRAP_VARS"
+fi
+
+# Fix CRLF if needed
+if file "$BOOTSTRAP_VARS" | grep -q "CRLF"; then
+    warn "Windows line endings in bootstrap.vars — fixing"
+    sed -i 's/\r//' "$BOOTSTRAP_VARS"
+fi
+
+# Now call load_env — function is verified available
 load_env "$BOOTSTRAP_VARS"
-success "Vars loaded from: $BOOTSTRAP_VARS"
+
+success "bootstrap.vars loaded"
 
 # ════════════════════════════════════════════════════════════════
-# STEP 3 — Validate bootstrap vars
+# STEP 4 — Validate required vars
 # ════════════════════════════════════════════════════════════════
-log "Step 3: Validating bootstrap vars"
+log "Step 4: Validating bootstrap vars"
 
 REQUIRED_VARS=(
     APP_NAME
@@ -102,15 +186,15 @@ for var in "${REQUIRED_VARS[@]}"; do
     fi
 done
 
-[ ${#MISSING_VARS[@]} -eq 0 ] \
-    || die "Fix bootstrap.vars — missing: ${MISSING_VARS[*]}"
+if [ ${#MISSING_VARS[@]} -gt 0 ]; then
+    die "Fix bootstrap.vars — missing vars: ${MISSING_VARS[*]}"
+fi
 
 # ════════════════════════════════════════════════════════════════
-# STEP 4 — Resolve ALL paths from PROJECT_ROOT
+# STEP 5 — Resolve paths from PROJECT_ROOT
 # ════════════════════════════════════════════════════════════════
-log "Step 4: Resolving all paths from PROJECT_ROOT=$PROJECT_ROOT"
+log "Step 5: Resolving paths from PROJECT_ROOT=$PROJECT_ROOT"
 
-# ── All resolved from PROJECT_ROOT ────────────────────────────────
 APP_DIR="$PROJECT_ROOT/$APP_RELATIVE"
 RELEASES_DIR="$PROJECT_ROOT/$RELEASES_RELATIVE"
 CONFIGS_DIR="$PROJECT_ROOT/$CONFIGS_RELATIVE"
@@ -120,22 +204,18 @@ RUN_DIR="$PROJECT_ROOT/$RUN_RELATIVE"
 VENV_DIR="$PROJECT_ROOT/$VENV_RELATIVE"
 PID_FILE="$RUN_DIR/$APP_NAME.pid"
 
-# ── Requirements relative to APP_DIR ─────────────────────────────
 if [[ "${REQUIREMENTS_FILE:-}" != /* ]]; then
     REQUIREMENTS_FILE="$APP_DIR/$REQUIREMENTS_FILE"
 fi
 
-# ── Export all resolved paths ─────────────────────────────────────
 export APP_DIR RELEASES_DIR CONFIGS_DIR GUNICORN_CONF_DIR
 export LOG_DIR RUN_DIR VENV_DIR PID_FILE REQUIREMENTS_FILE
 
-# ── Print resolved paths ─────────────────────────────────────────
 echo ""
 echo "  ┌──────────────────────────────────────────────────────────┐"
-echo "  │           Resolved Paths (all under PROJECT_ROOT)        │"
+echo "  │           Resolved Paths                                 │"
 echo "  ├─────────────────────────────┬────────────────────────────┤"
 printf "  │  %-27s │ %s\n" "PROJECT_ROOT"      "$PROJECT_ROOT"
-echo "  ├─────────────────────────────┼────────────────────────────┤"
 printf "  │  %-27s │ %s\n" "APP_DIR"           "$APP_DIR"
 printf "  │  %-27s │ %s\n" "RELEASES_DIR"      "$RELEASES_DIR"
 printf "  │  %-27s │ %s\n" "CONFIGS_DIR"       "$CONFIGS_DIR"
@@ -146,36 +226,34 @@ printf "  │  %-27s │ %s\n" "VENV_DIR"          "$VENV_DIR"
 printf "  │  %-27s │ %s\n" "PID_FILE"          "$PID_FILE"
 printf "  │  %-27s │ %s\n" "REQUIREMENTS_FILE" "$REQUIREMENTS_FILE"
 echo "  ├─────────────────────────────┼────────────────────────────┤"
-echo "  │  Outside project root       │                            │"
-echo "  ├─────────────────────────────┼────────────────────────────┤"
 printf "  │  %-27s │ %s\n" "ENVS_DIR"  "$ENVS_DIR"
 printf "  │  %-27s │ %s\n" "ENV_FILE"  "$ENV_FILE"
 echo "  └─────────────────────────────┴────────────────────────────┘"
 echo ""
 
 # ════════════════════════════════════════════════════════════════
-# STEP 5 — Dir tree before creation
+# STEP 6 — Dir tree before creation
 # ════════════════════════════════════════════════════════════════
-log "Step 5: Directory status (before creation)"
+log "Step 6: Directory status (before creation)"
 print_dir_tree
 
 # ════════════════════════════════════════════════════════════════
-# STEP 6 — Create all directories
+# STEP 7 — Create directories
 # ════════════════════════════════════════════════════════════════
-log "Step 6: Creating project root and all directories"
+log "Step 7: Creating directories"
 create_project_dirs
 success "All directories created"
 
 # ════════════════════════════════════════════════════════════════
-# STEP 7 — Dir tree after creation
+# STEP 8 — Dir tree after creation
 # ════════════════════════════════════════════════════════════════
-log "Step 7: Directory status (after creation)"
+log "Step 8: Directory status (after creation)"
 print_dir_tree
 
 # ════════════════════════════════════════════════════════════════
-# STEP 8 — Detect Python
+# STEP 9 — Detect Python
 # ════════════════════════════════════════════════════════════════
-log "Step 8: Detecting Python >= $PYTHON_MIN_VERSION"
+log "Step 9: Detecting Python >= $PYTHON_MIN_VERSION"
 
 PYTHON_BIN=""
 MIN_MAJOR=$(echo "$PYTHON_MIN_VERSION" | cut -d. -f1)
@@ -204,9 +282,9 @@ done
     Install: sudo dnf install python3.11 -y"
 
 # ════════════════════════════════════════════════════════════════
-# STEP 9 — Create or reuse venv inside PROJECT_ROOT
+# STEP 10 — Create or reuse venv
 # ════════════════════════════════════════════════════════════════
-log "Step 9: Setting up venv at $VENV_DIR"
+log "Step 10: Setting up venv at $VENV_DIR"
 
 if $FORCE_RECREATE && [ -d "$VENV_DIR" ]; then
     warn "--force: removing $VENV_DIR"
@@ -234,9 +312,9 @@ if [ ! -d "$VENV_DIR" ]; then
 fi
 
 # ════════════════════════════════════════════════════════════════
-# STEP 10 — pip + requirements
+# STEP 11 — pip + requirements
 # ════════════════════════════════════════════════════════════════
-log "Step 10: Installing requirements from $REQUIREMENTS_FILE"
+log "Step 11: Installing requirements from $REQUIREMENTS_FILE"
 
 [ -f "$REQUIREMENTS_FILE" ] \
     || die "requirements.txt not found: $REQUIREMENTS_FILE"
@@ -258,9 +336,9 @@ log "Installing $REQ_COUNT packages"
 success "Requirements installed"
 
 # ════════════════════════════════════════════════════════════════
-# STEP 11 — Verify key packages
+# STEP 12 — Verify packages
 # ════════════════════════════════════════════════════════════════
-log "Step 11: Verifying key packages"
+log "Step 12: Verifying key packages"
 
 REQUIRED_PACKAGES=(flask gunicorn python-dotenv flask-sqlalchemy)
 FAILED_PACKAGES=()
