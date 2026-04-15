@@ -1,247 +1,136 @@
-# /opt/myapp-project/configs/gunicorn/gunicorn.conf.py
-#
-# All paths resolved from PROJECT_ROOT env var
-# Set by app1.sh before exec gunicorn:
-#   export PROJECT_ROOT=/opt/myapp-project
-#   export LOGS_RELATIVE=logs
-#   export RUN_RELATIVE=run
-#   export APP_NAME=myapp
-#
-# DO NOT call load_dotenv here
-# .env is loaded by app1.sh before gunicorn starts
-
-import os
-import multiprocessing
+# /opt/scripts/bootstrap.vars
 
 # ════════════════════════════════════════════════════════════════
-# STEP 1 — VALIDATE PROJECT_ROOT
+# APP IDENTITY
 # ════════════════════════════════════════════════════════════════
-
-PROJECT_ROOT = os.environ.get("PROJECT_ROOT", "").strip()
-
-if not PROJECT_ROOT:
-    raise EnvironmentError(
-        "\n"
-        "[gunicorn.conf] ERROR: PROJECT_ROOT is not set\n"
-        "[gunicorn.conf] app1.sh must export PROJECT_ROOT before exec gunicorn\n"
-        "[gunicorn.conf] Example: export PROJECT_ROOT=/opt/myapp-project\n"
-    )
-
-if not os.path.isdir(PROJECT_ROOT):
-    raise FileNotFoundError(
-        f"\n"
-        f"[gunicorn.conf] ERROR: PROJECT_ROOT does not exist: {PROJECT_ROOT}\n"
-        f"[gunicorn.conf] Run bootstrap.sh first to create project directories\n"
-    )
+APP_NAME=myapp
+APP_USER=wlsapps
+APP_GROUP=wlsapps
 
 # ════════════════════════════════════════════════════════════════
-# STEP 2 — RESOLVE SUBDIRECTORY NAMES FROM ENV
-# Defaults match bootstrap.vars values
+# PROJECT ROOT — parent of all dirs
 # ════════════════════════════════════════════════════════════════
-
-APP_NAME              = os.environ.get("APP_NAME",              "myapp")
-APP_RELATIVE          = os.environ.get("APP_RELATIVE",          "app")
-LOGS_RELATIVE         = os.environ.get("LOGS_RELATIVE",         "logs")
-RUN_RELATIVE          = os.environ.get("RUN_RELATIVE",          "run")
-CONFIGS_RELATIVE      = os.environ.get("CONFIGS_RELATIVE",      "configs")
-VENV_RELATIVE         = os.environ.get("VENV_RELATIVE",         "venv")
+PROJECT_ROOT=/opt/myapp-project
 
 # ════════════════════════════════════════════════════════════════
-# STEP 3 — RESOLVE ABSOLUTE PATHS FROM PROJECT_ROOT
+# RELATIVE DIRS — all resolved from PROJECT_ROOT
 # ════════════════════════════════════════════════════════════════
-
-# Source code dir
-APP_DIR    = os.path.join(PROJECT_ROOT, APP_RELATIVE)
-
-# Log dir — all gunicorn logs go here
-LOG_DIR    = os.path.join(PROJECT_ROOT, LOGS_RELATIVE)
-
-# Run dir — pid file goes here
-RUN_DIR    = os.path.join(PROJECT_ROOT, RUN_RELATIVE)
-
-# PID file — inside RUN_DIR
-PID_FILE   = os.path.join(RUN_DIR, f"{APP_NAME}.pid")
-
-# Venv dir — for reference/logging only
-VENV_DIR   = os.path.join(PROJECT_ROOT, VENV_RELATIVE)
+APP_RELATIVE=app
+RELEASES_RELATIVE=releases
+CONFIGS_RELATIVE=configs
+GUNICORN_CONF_RELATIVE=configs/gunicorn
+LOGS_RELATIVE=logs
+RUN_RELATIVE=run
+VENV_RELATIVE=venv
 
 # ════════════════════════════════════════════════════════════════
-# STEP 4 — VALIDATE RESOLVED DIRS EXIST
+# SCRIPTS
 # ════════════════════════════════════════════════════════════════
-
-def _validate_dir(path: str, label: str) -> None:
-    """Raise if directory does not exist."""
-    if not os.path.isdir(path):
-        raise FileNotFoundError(
-            f"\n"
-            f"[gunicorn.conf] ERROR: {label} not found: {path}\n"
-            f"[gunicorn.conf] Run bootstrap.sh to create all project directories\n"
-        )
-
-_validate_dir(PROJECT_ROOT, "PROJECT_ROOT")
-_validate_dir(APP_DIR,      "APP_DIR")
+SCRIPTS_DIR=/opt/scripts
 
 # ════════════════════════════════════════════════════════════════
-# STEP 5 — ENSURE RUNTIME DIRS EXIST
-# Create LOG_DIR and RUN_DIR if missing
-# These may not exist on first start
+# SECRETS — outside project root
 # ════════════════════════════════════════════════════════════════
-
-def _ensure_dir(path: str, label: str) -> None:
-    """Create directory if it does not exist."""
-    if not os.path.isdir(path):
-        os.makedirs(path, exist_ok=True)
-        print(f"[gunicorn.conf] Created {label}: {path}")
-    else:
-        print(f"[gunicorn.conf] {label}: {path}")
-
-_ensure_dir(LOG_DIR, "LOG_DIR")
-_ensure_dir(RUN_DIR, "RUN_DIR")
+ENVS_DIR=/opt/envs
+ENV_FILE=/opt/envs/myapp.env
 
 # ════════════════════════════════════════════════════════════════
-# STEP 6 — BINDING
+# PYTHON
 # ════════════════════════════════════════════════════════════════
-
-bind = os.environ.get("GUNICORN_BIND", "0.0.0.0:8001")
-
-# ════════════════════════════════════════════════════════════════
-# STEP 7 — WORKERS
-# ════════════════════════════════════════════════════════════════
-
-workers      = int(os.environ.get(
-    "GUNICORN_WORKERS",
-    multiprocessing.cpu_count() * 2 + 1
-))
-threads      = int(os.environ.get("GUNICORN_THREADS", 2))
-worker_class = "gthread"
+PYTHON_MIN_VERSION=3.8
+REQUIREMENTS_FILE=requirements.txt
 
 # ════════════════════════════════════════════════════════════════
-# STEP 8 — TIMEOUTS
+# GUNICORN — BINDING
 # ════════════════════════════════════════════════════════════════
 
-timeout          = int(os.environ.get("GUNICORN_TIMEOUT",  120))
-graceful_timeout = int(os.environ.get("GUNICORN_GRACEFUL", 30))
-keepalive        = int(os.environ.get("GUNICORN_KEEPALIVE", 5))
+# Host and port gunicorn listens on
+# Use 127.0.0.1:8001 if behind Nginx/Apache
+# Use 0.0.0.0:8001 for direct access
+GUNICORN_BIND=0.0.0.0:8001
 
 # ════════════════════════════════════════════════════════════════
-# STEP 9 — PROCESS MANAGEMENT
+# GUNICORN — WORKERS
 # ════════════════════════════════════════════════════════════════
 
-# PID file — resolved from PROJECT_ROOT/run/<app_name>.pid
-pidfile = PID_FILE
+# Number of worker processes
+# Rule of thumb: (CPU cores x 2) + 1
+# 2 core = 5   4 core = 9   8 core = 17
+# Set explicitly to avoid surprises in production
+GUNICORN_WORKERS=5
 
-# Never daemonize — systemd or app1.sh manages the process
-daemon = False
+# Threads per worker
+# gthread worker class uses threads for concurrency
+# Each worker handles: GUNICORN_THREADS requests at a time
+# Total concurrency = GUNICORN_WORKERS x GUNICORN_THREADS
+GUNICORN_THREADS=2
 
-# Load app once in master then fork workers
-# Saves memory via copy-on-write
-preload_app = True
+# Worker class
+# gthread  — thread-based, best for Flask + SQLAlchemy
+# sync     — single threaded, one request per worker
+# gevent   — async green threads (needs gevent installed)
+GUNICORN_WORKER_CLASS=gthread
 
-# ════════════════════════════════════════════════════════════════
-# STEP 10 — LOGGING
-# All logs inside PROJECT_ROOT/logs/
-# ════════════════════════════════════════════════════════════════
+# Max requests before worker is gracefully restarted
+# Prevents memory leaks from growing indefinitely
+# 0 = never restart
+GUNICORN_MAX_REQUESTS=1000
 
-# Gunicorn access log — one line per HTTP request
-accesslog = os.path.join(LOG_DIR, "gunicorn-access.log")
-
-# Gunicorn error log — worker lifecycle, unhandled exceptions
-errorlog  = os.path.join(LOG_DIR, "gunicorn-error.log")
-
-# Log level
-loglevel  = os.environ.get("LOG_LEVEL", "info").lower()
-
-# Access log format
-access_log_format = (
-    '%(h)s %(l)s %(u)s %(t)s '
-    '"%(r)s" %(s)s %(b)s '
-    '"%(f)s" "%(a)s" '
-    'in %(D)sµs'
-)
+# Random jitter added to max_requests
+# Prevents all workers restarting at the same time
+GUNICORN_MAX_REQUESTS_JITTER=100
 
 # ════════════════════════════════════════════════════════════════
-# STEP 11 — SECURITY
+# GUNICORN — TIMEOUTS
 # ════════════════════════════════════════════════════════════════
 
-limit_request_line       = 4094
-limit_request_fields     = 100
-limit_request_field_size = 8190
+# Worker timeout in seconds
+# If worker does not respond within this time it is killed
+# Increase for long-running requests (file uploads, reports)
+GUNICORN_TIMEOUT=120
+
+# Graceful timeout on shutdown
+# Time for workers to finish current requests on SIGTERM
+GUNICORN_GRACEFUL_TIMEOUT=30
+
+# Keep-alive timeout for idle connections
+# How long to wait for next request on a persistent connection
+GUNICORN_KEEPALIVE=5
 
 # ════════════════════════════════════════════════════════════════
-# STEP 12 — STARTUP SUMMARY
+# GUNICORN — LOGGING
 # ════════════════════════════════════════════════════════════════
 
-print(
-    f"\n"
-    f"[gunicorn.conf] ════════════════════════════════════════════\n"
-    f"[gunicorn.conf]  Gunicorn Configuration\n"
-    f"[gunicorn.conf] ────────────────────────────────────────────\n"
-    f"[gunicorn.conf]  PROJECT_ROOT  : {PROJECT_ROOT}\n"
-    f"[gunicorn.conf]  APP_DIR       : {APP_DIR}\n"
-    f"[gunicorn.conf]  LOG_DIR       : {LOG_DIR}\n"
-    f"[gunicorn.conf]  RUN_DIR       : {RUN_DIR}\n"
-    f"[gunicorn.conf]  pidfile       : {pidfile}\n"
-    f"[gunicorn.conf]  accesslog     : {accesslog}\n"
-    f"[gunicorn.conf]  errorlog      : {errorlog}\n"
-    f"[gunicorn.conf]  bind          : {bind}\n"
-    f"[gunicorn.conf]  workers       : {workers}\n"
-    f"[gunicorn.conf]  threads       : {threads}\n"
-    f"[gunicorn.conf]  worker_class  : {worker_class}\n"
-    f"[gunicorn.conf]  timeout       : {timeout}s\n"
-    f"[gunicorn.conf]  loglevel      : {loglevel}\n"
-    f"[gunicorn.conf]  preload_app   : {preload_app}\n"
-    f"[gunicorn.conf]  daemon        : {daemon}\n"
-    f"[gunicorn.conf] ════════════════════════════════════════════\n"
-)
+# Log level: debug, info, warning, error, critical
+LOG_LEVEL=info
+
+# Log retention in days (used by Flask TimedRotatingFileHandler)
+LOG_RETENTION_DAYS=30
 
 # ════════════════════════════════════════════════════════════════
-# STEP 13 — HOOKS
+# GUNICORN — SECURITY
 # ════════════════════════════════════════════════════════════════
 
-def on_starting(server):
-    server.log.info(
-        f"Gunicorn starting | "
-        f"app={APP_NAME} | "
-        f"root={PROJECT_ROOT} | "
-        f"bind={bind} | "
-        f"workers={workers} | "
-        f"pid={pidfile}"
-    )
+# Max size of HTTP request line in bytes
+# Protects against oversized URL attacks
+GUNICORN_LIMIT_REQUEST_LINE=4094
 
-def on_exit(server):
-    server.log.info(
-        f"Gunicorn exiting | "
-        f"app={APP_NAME} | "
-        f"root={PROJECT_ROOT}"
-    )
+# Max number of HTTP headers
+# Protects against header flooding attacks
+GUNICORN_LIMIT_REQUEST_FIELDS=100
 
-def post_fork(server, worker):
-    server.log.info(
-        f"Worker forked | "
-        f"pid={worker.pid} | "
-        f"app={APP_NAME}"
-    )
+# Max size of each HTTP header value in bytes
+GUNICORN_LIMIT_REQUEST_FIELD_SIZE=8190
 
-def worker_int(worker):
-    worker.log.warning(
-        f"Worker interrupted | "
-        f"pid={worker.pid}"
-    )
+# ════════════════════════════════════════════════════════════════
+# ADO GIT
+# ════════════════════════════════════════════════════════════════
+ADO_ORG=your-org
+ADO_PROJECT=your-project
+ADO_REPO=your-repo
+ADO_PAT=your-personal-access-token
 
-def worker_abort(worker):
-    worker.log.warning(
-        f"Worker aborted | "
-        f"pid={worker.pid}"
-    )
-
-def pre_exec(server):
-    server.log.info(
-        f"Gunicorn master restarting | "
-        f"app={APP_NAME}"
-    )
-
-def on_reload(server):
-    server.log.info(
-        f"Gunicorn reloading | "
-        f"logdir={LOG_DIR}"
-    )
+# ════════════════════════════════════════════════════════════════
+# RELEASE MANAGEMENT
+# ════════════════════════════════════════════════════════════════
+KEEP_RELEASES=5
